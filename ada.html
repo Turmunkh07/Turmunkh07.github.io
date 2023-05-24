@@ -1,0 +1,40 @@
+<style>
+  body {
+    background: url(ada-bg.png);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+      Arial, sans-serif;
+    margin: 0;
+    font-size: larger;
+    padding-top: 2rem;
+    padding-left: 2rem;
+    color: whitesmoke
+  }
+</style>
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Auto Diagnostic Audio</title>
+</head>
+
+<body>
+  <h2 style="color:whitesmoke;">ADA (Auto Diagnostic Audio)</h2>
+  <h3 style="color:whitesmoke;"><b>Current note: <span id="result">n/a</b></h3>
+  <button type="button" id='start-button'>Start</button>
+
+  <div id="label-container" width="25%"></div>
+  <img src='https://cdn.dribbble.com/users/1144/screenshots/1947331/loader-animation.gif' height="400" width="500"
+    style="margin-right: 50%;" id="img"></img>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
+  <script src="ada.js"></script>
+</body>
+
+</html>
