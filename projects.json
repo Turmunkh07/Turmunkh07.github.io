@@ -1,0 +1,30 @@
+[
+    {
+        "id": "project-1",
+        "title": "Project One",
+        "description": "A web app that tracks daily tasks.",
+        "image": "https://placehold.co/400x250.png",
+        "link": "project-one.html"
+    },
+    {
+        "id": "project-2",
+        "title": "Project Two",
+        "description": "An analysis of weather data using Python.",
+        "image": "https://placehold.co/400x250.png",
+        "link": "project-two.html"
+    },
+    {
+        "id": "project-3",
+        "title": "Project Three",
+        "description": "Mobile responsive dashboard design.",
+        "image": "https://placehold.co/400x250.png",
+        "link": "project-three.html"
+    },
+    {
+        "id": "project-4",
+        "title": "Project Four",
+        "description": "E-commerce platform prototype.",
+        "image": "https://placehold.co/400x250.png",
+        "link": "project-four.html"
+    }
+]
