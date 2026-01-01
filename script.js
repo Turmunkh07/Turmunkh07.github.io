@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let scrollAmount = 0;
     
     nextButton.addEventListener('click', () => {
-        const slideWidth = 320; // 300px width + 20px margin
+        const slideWidth = 340; // 300px width + 20px margin
         const trackWidth = track.scrollWidth;
         const containerWidth = track.parentElement.clientWidth;
         
