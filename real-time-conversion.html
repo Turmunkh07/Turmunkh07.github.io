@@ -12,6 +12,7 @@
         position: fixed;
         top: 0;
         left: 0;
+        background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
         width: 100vw;
         height: 100vh;
         display: flex;
@@ -23,10 +24,11 @@
     /* Massive centering font */
     #countdown-number {
         font-family: sans-serif;
-        font-size: 12rem; /* Extremely big font */
+        font-size: 15rem; /* Extremely big font */
         font-weight: bold;
         color: rgba(0, 0, 0, 0.75);;
     }
+
     input[type="text"] {
             background: #0f111a;
             border: 1px solid #3b3f5c;
@@ -34,23 +36,29 @@
             padding: 12px;
             border-radius: 6px;
             font-size: 1rem;
+            margin-right: 10px;
         }
     button {
             padding: 14px;
             border: none;
             border-radius: 6px;
             font-weight: bold;
-            font-size: 5rem;
+            font-size: 0.75rem;
             cursor: pointer;
             transition: background 0.2s;
-            size: 550%;
         }
-    .btn-start { background: #00ffcc; color: #0f111a; }
+        .btn-start { background: #00ffcc; color: #0f111a; }
         .btn-start:hover { background: #00ccaa; }
         .btn-stop { background: #ff3b30; color: #fff; }
-        .btn-stop:hover { background: #d32f2f; }
-        .btn-download { background: #388e3c; color: #fff; }
-        .btn-download:hover { background: #2e7d32; }
+        .btn-stop:hover { background: #d32f2f; }  
+        .status {
+            font-weight: bold;
+            color: #ffb300;
+        }
+        .recording {
+            color: #ff3b30;
+            animation: blink 1s infinite;
+        }
     </style>
 </head>
 <body>
@@ -70,7 +78,7 @@
         <div>Frame count: <span id="frame-count">0</span></div>
 
         <button id="record-btn" class="btn-start">Дохио бичиж эхлэх</button>
-        <button id="download-btn" class="btn-download" style="display: none;">Сүүлд бичсэн дохиог татах</button>
+
         <pre id="json-output" style="background: #222; color: #0f0; padding: 15px; max-height: 200px; overflow-y: scroll;">Камертай холбогдож байна</pre>
     </div>
     
@@ -86,7 +94,6 @@
 
         const labelInput = document.getElementById('label-input');
         const recordBtn = document.getElementById('record-btn');
-        const downloadBtn = document.getElementById('download-btn');
         const statusText = document.getElementById('status-text');
         const frameCountText = document.getElementById('frame-count');
         
@@ -224,15 +231,19 @@
             }
 
             if (!isRecording) {
-                overlay.style.display = "flex";
                 timeLeft = 3;
+                numberElement.textContent = timeLeft;
+                overlay.style.display = "flex";
+                recordBtn.disabled = true; // Prevent multiple clicks during countdown
+
                 const timer = setInterval(() => {
                     timeLeft -= 1;
                     if (timeLeft > 0) {
                         numberElement.textContent = timeLeft;
                     } else if (timeLeft === 0) {
-                        numberElement.textContent = "GO!";
-                        overlay.display = "none";
+                        clearInterval(timer);
+                        overlay.style.display = "none";
+                        recordBtn.disabled = false;
 
                         // START RECORDING STATE
                         isRecording = true;
@@ -241,27 +252,25 @@
                         recordBtn.className = "btn-stop";
                         statusText.textContent = " Дохио бичиж байна";
                         statusText.className = "status recording";
-                        downloadBtn.style.display = "none";
-                    } else {
-                        clearInterval(timer);
-                        overlay.remove(); // Removes the overlay completely so users can click the page
                     }
                 }, 1000);
             } else {
                 // STOP RECORDING STATE
                 isRecording = false;
-                recordBtn.textContent = "Бичиж эхлэх";
+                recordBtn.textContent = "Дохио бичиж эхлэх";
                 recordBtn.className = "btn-start";
-                statusText.textContent = `Үгүй / Сүүлийн бичлэг татаж авахад бэлэн`;
+                statusText.textContent = `Үгүй / Экспорт хийгдсэн`;
                 statusText.className = "status";
+                
                 if (recordingBuffer.length > 0) {
-                    downloadBtn.style.display = "block";
+                    downloadJSON(); // Auto-exports instantly
                 }
             }
         });
-
+    
+    
         // Pack the array matrix and export instantly as file
-        downloadBtn.addEventListener('click', () => {
+        function downloadJSON() {
             const labelValue = labelInput.value.trim() || "unknown";
             
             const exportPayload = {
@@ -272,15 +281,15 @@
 
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload));
             const downloadAnchor = document.createElement('a');
-            
             const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+            
             downloadAnchor.setAttribute("href", dataStr);
             downloadAnchor.setAttribute("download", `sign_${labelValue}_${timestamp}.json`);
             document.body.appendChild(downloadAnchor);
-            
+
             downloadAnchor.click();
             downloadAnchor.remove();
-        });
+        };
 
 
         // Initialize MediaPipe Holistic object
