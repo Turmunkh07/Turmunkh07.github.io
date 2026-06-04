@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Real-Time Sign Language Preprocessor</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
+    <style>
+    /* Full-screen darkening overlay */
+    #countdown-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999; /* Forces it on top of everything else */
+    }
+
+    /* Massive centering font */
+    #countdown-number {
+        font-family: sans-serif;
+        font-size: 12rem; /* Extremely big font */
+        font-weight: bold;
+        color: rgba(0, 0, 0, 0.75);;
+    }
+    </style>
+</head>
+<body>
+    <div id="countdown-overlay" style="display: none;">
+        <div id="countdown-number">3</div>
+    </div>
+    <h2>Live Coordinate detection and JSON conversion</h2>
+    <video id="webcam" autoplay playsinline width="640" height="480" style="transform: scaleX(-1);">
+
+    </video>
+    <canvas id="output_canvas" width="640" height="480"></canvas>
+    <div>
+        <label for="label-input">Дохионы нэр:</label>
+        <input type="text" id="label-input" placeholder="Жиш: сайн"/>
+            
+        <div>Бичлэг хийж байгаа эсэх: <span id="status-text" class="status">Үгүй</span></div>
+        <div>Frame count: <span id="frame-count">0</span></div>
+
+        <button id="record-btn" class="btn-start">Дохио бичиж эхлэх</button>
+        <button id="download-btn" class="btn-download" style="display: none;">Сүүлд бичсэн дохиог татах</button>
+        <pre id="json-output" style="background: #222; color: #0f0; padding: 15px; max-height: 200px; overflow-y: scroll;">Камертай холбогдож байна</pre>
+    </div>
+    
+    <script>
+        const videoElement = document.getElementById('webcam');
+        const jsonOutput = document.getElementById('json-output');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+
+        let timeLeft = 3;
+        const overlay = document.getElementById('countdown-overlay');
+        const numberElement = document.getElementById('countdown-number');
+
+        const labelInput = document.getElementById('label-input');
+        const recordBtn = document.getElementById('record-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const statusText = document.getElementById('status-text');
+        const frameCountText = document.getElementById('frame-count');
+        
+        let isRecording = false;
+        let recordingBuffer = [];
+
+        let lastFrameTime = 0;
+        const TARGET_FPS = 15;
+        const FRAME_INTERVAL = 1000 / TARGET_FPS;
+
+        // Selected facial landmark indices for expressions (matching Python script)
+        const FACE_INDICES = [0, 11, 12, 13, 14, 15, 17, 37, 39, 40, 61, 78, 81, 82, 95, 146, 178, 191, 267, 269, 270, 291, 308, 311, 312, 324, 375, 402, 415];
+
+        // Helper to safely extract x,y,z arrays or fall back to zeros
+        function getCoordinates(landmarks, indices = null) {
+            if (!landmarks) {
+                const count = indices ? indices.length : 21; // Hands have 21 landmarks
+                return Array(count).fill(0).map(() => ({x: 0, y: 0, z: 0}));
+            }
+            if (indices) {
+                return indices.map(i => landmarks[i] ? {x: landmarks[i].x, y: landmarks[i].y, z: landmarks[i].z} : {x: 0, y: 0, z: 0});
+            }
+            return landmarks.map(lm => ({x: lm.x, y: lm.y, z: lm.z}));
+        }
+
+        function onResults(results) {
+            const currentTime = Date.now();
+            if (currentTime - lastFrameTime < FRAME_INTERVAL) return;
+            lastFrameTime = currentTime;
+
+            // 1. Extract raw landmarks
+            const rawFace = getCoordinates(results.faceLandmarks, FACE_INDICES);
+            const rawLH = getCoordinates(results.leftHandLandmarks);
+            const rawRH = getCoordinates(results.rightHandLandmarks);
+            const rawPose = getCoordinates(results.poseLandmarks);
+
+            // 2. Establish Spatial Anchors (Nose: 0, Left Shoulder: 11, Right Shoulder: 12)
+            const nose = rawPose[0];
+            const leftShoulder = rawPose[11];
+            const rightShoulder = rawPose[12];
+
+            // Mid-shoulder calculation for origin (0,0,0)
+            const midShoulder = {
+                x: (leftShoulder.x + rightShoulder.x) / 2,
+                y: (leftShoulder.y + rightShoulder.y) / 2,
+                z: (leftShoulder.z + rightShoulder.z) / 2
+            };
+
+            // Distance between shoulders for scaling scale invariance
+            const shoulderDist = Math.sqrt(
+                Math.pow(leftShoulder.x - rightShoulder.x, 2) +
+                Math.pow(leftShoulder.y - rightShoulder.y, 2) +
+                Math.pow(leftShoulder.z - rightShoulder.z, 2)
+            ) || 1.0;
+
+            // Flattening structure identical to Python's format requirements
+            const processedFrame = [
+                ...rawFace.flatMap(pt => [(pt.x - nose.x) / shoulderDist, (pt.y - nose.y) / shoulderDist, (pt.z - nose.z) / shoulderDist]),
+                ...rawLH.flatMap(pt => pt.x === 0 ? [0,0,0] : [(pt.x - midShoulder.x) / shoulderDist, (pt.y - midShoulder.y) / shoulderDist, (pt.z - midShoulder.z) / shoulderDist]),
+                ...rawRH.flatMap(pt => pt.x === 0 ? [0,0,0] : [(pt.x - midShoulder.x) / shoulderDist, (pt.y - midShoulder.y) / shoulderDist, (pt.z - midShoulder.z) / shoulderDist]),
+                ...[11, 12, 13, 14, 15, 16].flatMap(idx => {
+                    const pt = rawPose[idx];
+                    return [(pt.x - midShoulder.x) / shoulderDist, (pt.y - midShoulder.y) / shoulderDist, (pt.z - midShoulder.z) / shoulderDist];
+                })
+            ];
+
+            if (isRecording) {
+                recordingBuffer.push(processedFrame);
+                frameCountText.textContent = recordingBuffer.length;
+                jsonOutput.textContent = `Recording... Last Frame Dim: [${processedFrame.length} features]`;
+            }
+
+            // 3. Normalize Coordinates & Structure Final JSON Payload
+            const framePayload = {
+                timestamp: Date.now(),
+                face: rawFace.map(pt => ({
+                    x: (pt.x - nose.x) / shoulderDist,
+                    y: (pt.y - nose.y) / shoulderDist,
+                    z: (pt.z - nose.z) / shoulderDist
+                })),
+                left_hand: rawLH.map(pt => ({
+                    x: (pt.x - midShoulder.x) / shoulderDist,
+                    y: (pt.y - midShoulder.y) / shoulderDist,
+                    z: (pt.z - midShoulder.z) / shoulderDist
+                })),
+                right_hand: rawRH.map(pt => ({
+                    x: (pt.x - midShoulder.x) / shoulderDist,
+                    y: (pt.y - midShoulder.y) / shoulderDist,
+                    z: (pt.z - midShoulder.z) / shoulderDist
+                })),
+                arms: [11, 12, 13, 14, 15, 16].map(idx => {
+                    const pt = rawPose[idx];
+                    return {
+                        x: (pt.x - midShoulder.x) / shoulderDist,
+                        y: (pt.y - midShoulder.y) / shoulderDist,
+                        z: (pt.z - midShoulder.z) / shoulderDist
+                    };
+                })
+            };
+            // 4. Output or Transmit JSON
+            jsonOutput.textContent = JSON.stringify(framePayload, null, 2);
+            
+            
+            // Clear the canvas for the fresh frame redraw
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            // Draw the structural connectors onto the canvas viewport
+            if (results.poseLandmarks) {
+                // Draw key arm components
+                drawConnectors(canvasCtx, results.poseLandmarks, [
+                    [11, 13], [13, 15], [12, 14], [14, 16], [11, 12]
+                ], {color: '#0022ff', lineWidth: 3});
+                drawLandmarks(canvasCtx, [results.poseLandmarks[11], results.poseLandmarks[12]], {color: '#ff0055', radius: 4});
+            }
+            if (results.leftHandLandmarks) {
+                drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#00ffcc', lineWidth: 2});
+                drawLandmarks(canvasCtx, results.leftHandLandmarks, {color: '#00ffcc', radius: 2});
+            }
+            if (results.rightHandLandmarks) {
+                drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#00ffcc', lineWidth: 2});
+                drawLandmarks(canvasCtx, results.rightHandLandmarks, {color: '#00ffcc', radius: 2});
+            }
+            if (results.faceLandmarks) {
+                // Light facial loop tracing for expression silhouette
+                drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {color: '#0022ff', lineWidth: 0.5});
+            }
+        }
+
+        // Toggling Data Capture Loops
+        recordBtn.addEventListener('click', () => {
+            if (labelInput.value.trim() === "") {
+                labelInput.focus();
+                alert("Дохионы нэрийг оруулна уу!");
+                return;
+            }
+
+            if (!isRecording) {
+                overlay.style.display = "flex";
+                timeLeft = 3;
+                const timer = setInterval(() => {
+                    timeLeft -= 1;
+                    if (timeLeft > 0) {
+                        numberElement.textContent = timeLeft;
+                    } else if (timeLeft === 0) {
+                        numberElement.textContent = "GO!";
+                        overlay.display = "none";
+
+                        // START RECORDING STATE
+                        isRecording = true;
+                        recordingBuffer = [];
+                        recordBtn.textContent = "Зогсох";
+                        recordBtn.className = "btn-stop";
+                        statusText.textContent = " Дохио бичиж байна";
+                        statusText.className = "status recording";
+                        downloadBtn.style.display = "none";
+                    } else {
+                        clearInterval(timer);
+                        overlay.remove(); // Removes the overlay completely so users can click the page
+                    }
+                }, 1000);
+            } else {
+                // STOP RECORDING STATE
+                isRecording = false;
+                recordBtn.textContent = "Бичиж эхлэх";
+                recordBtn.className = "btn-start";
+                statusText.textContent = `Үгүй / Сүүлийн бичлэг татаж авахад бэлэн`;
+                statusText.className = "status";
+                if (recordingBuffer.length > 0) {
+                    downloadBtn.style.display = "block";
+                }
+            }
+        });
+
+        // Pack the array matrix and export instantly as file
+        downloadBtn.addEventListener('click', () => {
+            const labelValue = labelInput.value.trim() || "unknown";
+            
+            const exportPayload = {
+                label: labelValue,
+                features_dim: "frames x 231_features",
+                matrix: recordingBuffer
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload));
+            const downloadAnchor = document.createElement('a');
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `sign_${labelValue}_${timestamp}.json`);
+            document.body.appendChild(downloadAnchor);
+            
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        });
+
+
+        // Initialize MediaPipe Holistic object
+        const holistic = new Holistic({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`
+        });
+
+        holistic.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        holistic.onResults(onResults);
+
+        // Instantiate and loop the webcam feed
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await holistic.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+        camera.start();
+    </script>
+</body>
+</html>
