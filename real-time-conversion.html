@@ -293,7 +293,7 @@
     
         // Pack the array matrix and export instantly as file
         function downloadJSON() {
-            const labelValue = labelInput.value.trim().replace(/\s/g, '').toLowerCase() || "unknown";
+            const labelValue = labelInput.value.trim().toLowerCase() || "unknown";
             
             const exportPayload = {
                 label: labelValue,
