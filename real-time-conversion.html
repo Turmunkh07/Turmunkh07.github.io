@@ -7,12 +7,19 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
     <style>
-    /* Full-screen darkening overlay */
+    body {
+            background: #0f111a;
+            color: #e4e7eb;
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            margin: 0;
+        }
+    
     #countdown-overlay {
         position: fixed;
         top: 0;
         left: 0;
-        background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+        background: rgba(255, 255, 255, 0.25); /* Semi-transparent background */
         width: 100vw;
         height: 100vh;
         display: flex;
@@ -66,10 +73,12 @@
         <div id="countdown-number">3</div>
     </div>
     <h2>Live Coordinate detection and JSON conversion</h2>
-    <video id="webcam" autoplay playsinline width="640" height="480" style="transform: scaleX(-1);">
+    <div style="display: flex; align-items: center; gap: 20px;">
+        <video id="webcam" autoplay playsinline width="640" height="480" style="transform: scaleX(-1);">
 
-    </video>
-    <canvas id="output_canvas" width="640" height="480"></canvas>
+        </video>
+        <canvas id="output_canvas" width="640" height="480"></canvas>
+    </div>
     <div>
         <label for="label-input">Дохионы нэр:</label>
         <input type="text" id="label-input" placeholder="Жиш: сайн"/>
@@ -253,7 +262,7 @@
                         statusText.textContent = " Дохио бичиж байна";
                         statusText.className = "status recording";
                     }
-                }, 1000);
+                }, 750);
             } else {
                 // STOP RECORDING STATE
                 isRecording = false;
@@ -271,7 +280,7 @@
     
         // Pack the array matrix and export instantly as file
         function downloadJSON() {
-            const labelValue = labelInput.value.trim() || "unknown";
+            const labelValue = labelInput.value.trim().replace(/\s/g, '').toLowerCase() || "unknown";
             
             const exportPayload = {
                 label: labelValue,
