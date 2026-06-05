@@ -37,18 +37,26 @@
     }
 
     input[type="text"] {
+            /* Use standard CSS properties */
             color: #1a56db; /* Blue text */
+            -webkit-text-fill-color: #1a56db; /* Fix for WebKit autofill/dark mode */
+            caret-color: #1a56db;
             background-color: #f9fafb; /* Light gray background */
             border: 1px solid #3b3f5c;
-            field-sizing: content;
-            auto-grow;
+            box-sizing: border-box;
             min-width: 50%;
             max-width: 100%;
-            color: #fff;
             padding: 12px;
             border-radius: 6px;
             font-size: 1rem;
             margin-right: 10px;
+        }
+        /* Override Chrome's autofill coloring */
+        input[type="text"]:-webkit-autofill,
+        input[type="text"]:-webkit-autofill:focus,
+        input[type="text"]:-webkit-autofill:hover {
+            -webkit-text-fill-color: #1a56db !important;
+            box-shadow: 0 0 0px 1000px #f9fafb inset !important;
         }
     button {
             padding: 14px;
