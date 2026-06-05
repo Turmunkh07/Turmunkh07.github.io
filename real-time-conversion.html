@@ -39,6 +39,9 @@
     input[type="text"] {
             background: #0f111a;
             border: 1px solid #3b3f5c;
+            field-sizing: content;
+            min-width: 50%;
+            max-width: 100%
             color: #fff;
             padding: 12px;
             border-radius: 6px;
@@ -268,7 +271,7 @@
                 isRecording = false;
                 recordBtn.textContent = "Дохио бичиж эхлэх";
                 recordBtn.className = "btn-start";
-                statusText.textContent = `Үгүй / Экспорт хийгдсэн`;
+                statusText.textContent = "Үгүй";
                 statusText.className = "status";
                 
                 if (recordingBuffer.length > 0) {
